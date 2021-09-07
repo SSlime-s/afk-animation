@@ -88,7 +88,7 @@ impl Lines {
     fn update(&mut self, limit: usize) -> Vec<String> {
         assert!(limit > 0);
         while self.add_vertical_line() < limit {}
-        self.remove_first_vertical_line();
+        self.remove_first_vertical_line().expect("Failed to update AFK");
         self.into_strings()
     }
 
