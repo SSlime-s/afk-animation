@@ -91,7 +91,7 @@ impl Lines {
     }
 
     fn height(&self) -> usize {
-        self.afk_aa.height()
+        self.lines.len()
     }
 
     fn now_width(&self) -> usize {
