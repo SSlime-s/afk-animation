@@ -1,4 +1,7 @@
-use chrono::Local;
+use chrono::{
+    format::{DelayedFormat, StrftimeItems},
+    DateTime, Duration, Local,
+};
 use std::{
     thread,
     time::{self},
@@ -134,7 +137,61 @@ impl Lines {
             .collect()
     }
 }
-const TIME_FORMAT: &'static str = "%m/%d %H:%M:%S";
+
+enum Timer {
+    Measuring(DateTime<Local>),
+    Ended(DateTime<Local>, DateTime<Local>),
+}
+impl Timer {
+    const TIME_FORMAT: &'static str = "%m/%d %H:%M:%S";
+
+    fn start() -> Self {
+        Self::Measuring(Local::now())
+    }
+
+    fn finish(&mut self) {
+        if let Self::Measuring(start_time) = self {
+            *self = Self::Ended(start_time.clone(), Local::now());
+        }
+    }
+
+    fn formatted_start(&self) -> DelayedFormat<StrftimeItems<'_>> {
+        match self {
+            Self::Measuring(start_time) => start_time.format(Self::TIME_FORMAT),
+            Self::Ended(start_time, _) => start_time.format(Self::TIME_FORMAT),
+        }
+    }
+
+    fn formatted_end(&self) -> DelayedFormat<StrftimeItems<'_>> {
+        match self {
+            Self::Measuring(_) => panic!("Timer is Measuring"),
+            Self::Ended(_, end_time) => end_time.format(Self::TIME_FORMAT),
+        }
+    }
+
+    fn duration(&self) -> Duration {
+        match self {
+            Self::Measuring(start_time) => Local::now() - *start_time,
+            Self::Ended(start_time, end_time) => *end_time - *start_time,
+        }
+    }
+
+    fn formatted_duration(&self) -> String {
+        let duration = self.duration();
+        if duration.num_hours() > 0 {
+            format!("{}h{}m", duration.num_hours(), duration.num_minutes())
+        } else if duration.num_minutes() > 0 {
+            format!("{}m{}s", duration.num_minutes(), duration.num_minutes())
+        } else {
+            format!(
+                "{}.{:>02}s",
+                duration.num_seconds(),
+                duration.num_milliseconds() % 1000 / 10
+            )
+        }
+    }
+}
+
 fn main() {
     let saved_terattr = get_terattr_from_os();
 
@@ -149,7 +206,7 @@ fn main() {
     let mut buf: [libc::c_char; 1] = [0; 1];
     let ptr = &mut buf;
 
-    let left_time = Local::now();
+    let mut timer = Timer::start();
 
     let mut lines = Lines::new();
     {
@@ -158,7 +215,7 @@ fn main() {
             println!("{}", x);
         }
     }
-    println!("left from {}", left_time.format(TIME_FORMAT));
+    println!("left from {}", timer.formatted_start());
     print!("\x1b[1F");
     loop {
         let r = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
@@ -174,26 +231,19 @@ fn main() {
             println!("{}", x);
         }
     }
-    let back_time = Local::now();
+    timer.finish();
 
     print!("\x1b[{}F", lines.height());
     for line in BAK_AA.trim_start_matches("\n").lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
         println!("\x1b[K{}", &line[0..lines.now_width().min(line.len())]);
     }
-    let duration = back_time - left_time;
-    let formatted_duration = if duration.num_hours() > 0 {
-        format!("{}h{}m", duration.num_hours(), duration.num_minutes() % 60)
-    } else if duration.num_minutes() > 0 {
-        format!("{}m", duration.num_minutes())
-    } else {
-        format!("{}s", duration.num_seconds())
-    };
+
     println!(
         "\x1b[Kleft from {} to {} ({})",
-        left_time.format(TIME_FORMAT),
-        back_time.format(TIME_FORMAT),
-        formatted_duration
+        timer.formatted_start(),
+        timer.formatted_end(),
+        timer.formatted_duration(),
     );
 
     set_terattr(&saved_terattr);
