@@ -147,19 +147,19 @@ fn main() {
         }
         thread::sleep(time::Duration::from_millis(100));
 
-        // print!("a");
-        // std::io::stdout().flush().unwrap();
         let width = get_terminal_width().expect("Failed to get terminal Width");
         last_width = width;
+
         print!("\x1b[{}F", lines.afk_aa.height());
-        // print!("\x1b[12F");
         for x in lines.update(width) {
             println!("{}", x);
         }
     }
+
     print!("\x1b[{}F", lines.afk_aa.height());
     for line in BAK_AA.trim_start_matches("\n").lines() {
-        println!("{1:<0$}", last_width, line)
+        // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
+        println!("\x1b[K{}", &line[0..last_width.min(line.len())]);
     }
 
     set_terattr(&saved_terattr);
