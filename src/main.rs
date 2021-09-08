@@ -150,8 +150,9 @@ impl Timer {
     }
 
     fn finish(&mut self) {
-        if let Self::Measuring(start_time) = self {
-            *self = Self::Ended(start_time.clone(), Local::now());
+        match self {
+            Self::Measuring(start_time) => *self = Self::Ended(*start_time, Local::now()),
+            Self::Ended(_, end_time) => *end_time = Local::now(),
         }
     }
 
