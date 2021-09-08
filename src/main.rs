@@ -1,3 +1,4 @@
+use chrono::Local;
 use std::{
     thread,
     time::{self},
@@ -125,7 +126,7 @@ impl Lines {
             .collect()
     }
 }
-
+const TIME_FORMAT: &'static str = "%m/%d %H:%M:%S";
 fn main() {
     let saved_terattr = get_terattr_from_os();
 
@@ -140,11 +141,15 @@ fn main() {
     let mut buf: [libc::c_char; 1] = [0; 1];
     let ptr = &mut buf;
 
+    let left_time = Local::now();
+
     let mut lines = Lines::new();
     let mut last_width = get_terminal_width().expect("Failed to get terminal Width");
     for x in lines.update(last_width) {
         println!("{}", x);
     }
+    println!("left from {}", left_time.format(TIME_FORMAT));
+    print!("\x1b[1F");
     loop {
         let r = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
         if r > 0 {
@@ -160,12 +165,27 @@ fn main() {
             println!("{}", x);
         }
     }
+    let back_time = Local::now();
 
     print!("\x1b[{}F", lines.afk_aa.height());
     for line in BAK_AA.trim_start_matches("\n").lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
         println!("\x1b[K{}", &line[0..last_width.min(line.len())]);
     }
+    let duration = back_time - left_time;
+    let formatted_duration = if duration.num_hours() > 0 {
+        format!("{}h{}m", duration.num_hours(), duration.num_minutes() % 60)
+    } else if duration.num_minutes() > 0 {
+        format!("{}m", duration.num_minutes())
+    } else {
+        format!("{}s", duration.num_seconds())
+    };
+    println!(
+        "\x1b[Kleft from {} to {} ({})",
+        left_time.format(TIME_FORMAT),
+        back_time.format(TIME_FORMAT),
+        formatted_duration
+    );
 
     set_terattr(&saved_terattr);
 }
