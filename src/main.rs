@@ -87,6 +87,14 @@ impl Lines {
         }
     }
 
+    fn height(&self) -> usize {
+        self.afk_aa.height()
+    }
+
+    fn now_width(&self) -> usize {
+        self.lines[0].len()
+    }
+
     fn update(&mut self, limit: usize) -> Vec<String> {
         assert!(limit > 0);
         while self.add_vertical_line() < limit {}
@@ -144,9 +152,11 @@ fn main() {
     let left_time = Local::now();
 
     let mut lines = Lines::new();
-    let mut last_width = get_terminal_width().expect("Failed to get terminal Width");
-    for x in lines.update(last_width) {
-        println!("{}", x);
+    {
+        let width = get_terminal_width().expect("Failed to get terminal Width");
+        for x in lines.update(width) {
+            println!("{}", x);
+        }
     }
     println!("left from {}", left_time.format(TIME_FORMAT));
     print!("\x1b[1F");
@@ -158,19 +168,18 @@ fn main() {
         thread::sleep(time::Duration::from_millis(100));
 
         let width = get_terminal_width().expect("Failed to get terminal Width");
-        last_width = width;
 
-        print!("\x1b[{}F", lines.afk_aa.height());
+        print!("\x1b[{}F", lines.height());
         for x in lines.update(width) {
             println!("{}", x);
         }
     }
     let back_time = Local::now();
 
-    print!("\x1b[{}F", lines.afk_aa.height());
+    print!("\x1b[{}F", lines.height());
     for line in BAK_AA.trim_start_matches("\n").lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
-        println!("\x1b[K{}", &line[0..last_width.min(line.len())]);
+        println!("\x1b[K{}", &line[0..lines.now_width().min(line.len())]);
     }
     let duration = back_time - left_time;
     let formatted_duration = if duration.num_hours() > 0 {
