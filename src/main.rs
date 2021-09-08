@@ -36,7 +36,7 @@ struct AfkAA {
     afk_verticals: Vec<Vec<char>>,
 }
 impl AfkAA {
-    fn new(interval: usize) -> AfkAA {
+    fn new(interval: usize) -> Self {
         let lines = AFK_AA
             .trim_start_matches("\n")
             .lines()
@@ -50,7 +50,7 @@ impl AfkAA {
                     .collect()
             })
             .collect::<Vec<Vec<char>>>();
-        AfkAA {
+        Self {
             idx: 0,
             interval,
             afk_verticals: verticals,
