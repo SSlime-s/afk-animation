@@ -165,7 +165,7 @@ impl Timer {
 
     fn formatted_end(&self) -> DelayedFormat<StrftimeItems<'_>> {
         match self {
-            Self::Measuring(_) => panic!("Timer is Measuring"),
+            Self::Measuring(_) => Local::now().format(Self::TIME_FORMAT),
             Self::Ended(_, end_time) => end_time.format(Self::TIME_FORMAT),
         }
     }
