@@ -130,9 +130,7 @@ fn main() {
         termattr.c_cc[libc::VMIN] = 0;
         set_terattr(&termattr);
     }
-    unsafe {
-        libc::fcntl(libc::F_SETFL, libc::O_NONBLOCK);
-    }
+    ready_to_key_input();
 
     let mut buf: [libc::c_char; 1] = [0; 1];
     let ptr = &mut buf;
@@ -210,5 +208,11 @@ fn get_terattr_from_os() -> libc::termios {
 fn set_terattr(attr: &libc::termios) {
     unsafe {
         libc::tcsetattr(0, libc::TCSANOW, attr);
+    }
+}
+
+fn ready_to_key_input() {
+    unsafe {
+        libc::fcntl(libc::F_SETFL, libc::O_NONBLOCK);
     }
 }
