@@ -122,8 +122,8 @@ impl Lines {
         if self.lines[0].len() == 0 {
             Err(())
         } else {
-            self.lines.iter_mut().for_each(|x| {
-                x.remove(0);
+            self.lines.iter_mut().for_each(|line| {
+                line.remove(0);
             });
             Ok(self.lines[0].len())
         }
@@ -133,7 +133,7 @@ impl Lines {
         self.lines
             .clone()
             .into_iter()
-            .map(|x| x.iter().collect())
+            .map(|line| line.iter().collect())
             .collect()
     }
 }
@@ -212,15 +212,15 @@ fn main() {
     let mut lines = Lines::new();
     {
         let width = get_terminal_width().expect("Failed to get terminal Width");
-        for x in lines.update(width) {
-            println!("{}", x);
+        for line in lines.update(width) {
+            println!("{}", line);
         }
     }
     println!("left from {}", timer.formatted_start());
     print!("\x1b[1F");
     loop {
-        let r = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
-        if r > 0 {
+        let input = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
+        if input > 0 {
             break;
         }
         thread::sleep(time::Duration::from_millis(100));
@@ -228,8 +228,8 @@ fn main() {
         let width = get_terminal_width().expect("Failed to get terminal Width");
 
         print!("\x1b[{}F", lines.height());
-        for x in lines.update(width) {
-            println!("{}", x);
+        for line in lines.update(width) {
+            println!("{}", line);
         }
     }
     timer.finish();
@@ -258,14 +258,14 @@ fn get_terminal_width() -> Result<usize, ()> {
             eprintln!("{}", e);
             ()
         })
-        .and_then(|x| {
-            std::str::from_utf8(&x.stdout)
+        .and_then(|output| {
+            std::str::from_utf8(&output.stdout)
                 .map_err(|e| {
                     eprintln!("{}", e);
                     ()
                 })
-                .and_then(|x| {
-                    x.trim().parse::<usize>().map_err(|e| {
+                .and_then(|width_str| {
+                    width_str.trim().parse::<usize>().map_err(|e| {
                         eprintln!("{}", e);
                         ()
                     })
