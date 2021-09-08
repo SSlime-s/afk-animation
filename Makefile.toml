@@ -1,0 +1,13 @@
+[tasks.BUMP]
+command="cargo"
+args=["bump", "${@}"]
+
+[tasks.BUILD]
+command="cargo"
+args=["build"]
+
+[tasks.bump]
+dependencies = [
+  "BUMP",
+  "BUILD",
+]
