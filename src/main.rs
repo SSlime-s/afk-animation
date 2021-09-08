@@ -140,10 +140,10 @@ fn main() {
     let ptr = &mut buf;
 
     let mut lines = Lines::new();
-    for x in lines.update(50) {
+    let mut last_width = get_terminal_width().expect("Failed to get terminal Width");
+    for x in lines.update(last_width) {
         println!("{}", x);
     }
-    let mut last_width = 0;
     loop {
         let r = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
         if r > 0 {
