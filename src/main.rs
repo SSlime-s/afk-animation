@@ -25,6 +25,7 @@ const AFK_AA: &'static str = r"
  /  /      \  \   |  |           |  | \  \ 
 /__/        \__\  |__|           |__|  \__\
                                            ";
+
 struct AfkAA {
     idx: usize,
     interval: usize,
