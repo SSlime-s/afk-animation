@@ -212,9 +212,7 @@ fn main() {
     let mut lines = Lines::new();
     {
         let width = get_terminal_width().expect("Failed to get terminal Width");
-        for line in lines.update(width) {
-            println!("{}", line);
-        }
+        println!("{}", lines.update(width).join("\n"));
     }
     println!("left from {}", timer.formatted_start());
     print!("\x1b[1F");
@@ -228,9 +226,7 @@ fn main() {
         let width = get_terminal_width().expect("Failed to get terminal Width");
 
         print!("\x1b[{}F", lines.height());
-        for line in lines.update(width) {
-            println!("{}", line);
-        }
+        println!("{}", lines.update(width).join("\n"));
     }
     timer.finish();
 
