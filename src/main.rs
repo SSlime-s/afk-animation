@@ -182,7 +182,11 @@ impl Timer {
         if duration.num_hours() > 0 {
             format!("{}h{}m", duration.num_hours(), duration.num_minutes() % 60)
         } else if duration.num_minutes() > 0 {
-            format!("{}m{}s", duration.num_minutes(), duration.num_minutes() % 60)
+            format!(
+                "{}m{}s",
+                duration.num_minutes(),
+                duration.num_minutes() % 60
+            )
         } else {
             format!(
                 "{}.{:>02}s",
