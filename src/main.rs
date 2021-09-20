@@ -2,7 +2,9 @@ use chrono::{
     format::{DelayedFormat, StrftimeItems},
     DateTime, Duration, Local,
 };
+use ctrlc;
 use std::{
+    sync::{Arc, Mutex},
     thread,
     time::{self},
 };
@@ -210,6 +212,12 @@ fn main() {
 
     let mut buf: [libc::c_char; 1] = [0; 1];
     let ptr = &mut buf;
+    let is_ctrlc = Arc::new(Mutex::new(false));
+    {
+        let is_ctrlc = Arc::clone(&is_ctrlc);
+        ctrlc::set_handler(move || *is_ctrlc.lock().unwrap() = true)
+            .expect("Failed to set ctrlc handler");
+    }
 
     let mut timer = Timer::start();
 
@@ -220,7 +228,7 @@ fn main() {
     }
     loop {
         let input = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
-        if input > 0 {
+        if input > 0 || *is_ctrlc.lock().unwrap() {
             break;
         }
         thread::sleep(time::Duration::from_millis(100));
