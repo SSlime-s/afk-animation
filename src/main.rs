@@ -218,8 +218,6 @@ fn main() {
         let width = get_terminal_width().expect("Failed to get terminal Width");
         println!("{}", lines.update(width).join("\n"));
     }
-    println!("left from {}", timer.formatted_start());
-    print!("\x1b[1F");
     loop {
         let input = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
         if input > 0 {
@@ -229,12 +227,13 @@ fn main() {
 
         let width = get_terminal_width().expect("Failed to get terminal Width");
 
-        print!("\x1b[{}F", lines.height());
+        print!("\x1b[{}F", lines.height() + 1);
         println!("{}", lines.update(width).join("\n"));
+        println!("left from {}", timer.formatted_start());
     }
     timer.finish();
 
-    print!("\x1b[{}F", lines.height());
+    print!("\x1b[{}F", lines.height() + 1);
     for line in BAK_AA.trim_start_matches("\n").lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
         println!("\x1b[K{}", &line[0..lines.now_width().min(line.len())]);
