@@ -3,6 +3,7 @@ use chrono::{
     DateTime, Duration, Local,
 };
 use ctrlc;
+use rand::Rng;
 use std::{
     sync::{Arc, Mutex},
     thread,
@@ -176,7 +177,9 @@ impl Lines {
             .map(|line| {
                 let colors = self.colors.clone();
                 let elements = colors.into_iter().zip(line.into_iter());
-                let mut colored_line = elements.map(|(color, ch)| format!("{}{}", color, ch)).collect::<String>();
+                let mut colored_line = elements
+                    .map(|(color, ch)| format!("{}{}", color, ch))
+                    .collect::<String>();
                 colored_line.push_str(DEFAULT_COLOR);
                 colored_line
             })
@@ -288,9 +291,29 @@ fn main() {
     timer.finish();
 
     print!("\x1b[{}F", lines.height() + 1);
+    let colorizer = Colorizer::new();
+    let random_skip: usize =
+        rand::thread_rng().gen_range(0..(COLOR_MAX - COLOR_MIN) / COLOR_STEP * 3) as usize;
+    let colors = colorizer
+        .skip(random_skip)
+        .take(
+            BAK_AA
+                .trim_start_matches("\n")
+                .lines()
+                .next()
+                .unwrap()
+                .len(),
+        )
+        .collect::<Vec<_>>();
     for line in BAK_AA.trim_start_matches("\n").lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
-        println!("\x1b[K{}", &line[0..lines.now_width().min(line.len())]);
+        let shrunk_line = line[0..lines.now_width().min(line.len())].to_string();
+        let colored_line = (&colors)
+            .into_iter()
+            .zip(shrunk_line.chars())
+            .map(|(color, ch)| format!("{}{}", color, ch))
+            .collect::<String>();
+        println!("\x1b[K{}{}", colored_line, DEFAULT_COLOR);
     }
 
     println!(
