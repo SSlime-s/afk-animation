@@ -32,6 +32,8 @@ const AFK_AA: &'static str = r"
 /__/        \__\  |__|           |__|  \__\
                                            ";
 
+const DEFAULT_COLOR: &'static str = "\x1b[0m";
+
 struct AfkAA {
     idx: usize,
     interval: usize,
@@ -79,9 +81,40 @@ impl Iterator for AfkAA {
     }
 }
 
+const COLOR_MIN: u8 = 30;
+const COLOR_MAX: u8 = 200;
+const COLOR_STEP: u8 = 5;
+struct Colorizer {
+    rgb: Vec<u8>,
+    now_inclement: usize,
+}
+impl Colorizer {
+    fn new() -> Self {
+        Self {
+            rgb: vec![COLOR_MIN, COLOR_MAX, COLOR_MAX],
+            now_inclement: 0,
+        }
+    }
+}
+impl Iterator for Colorizer {
+    type Item = String;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.rgb[self.now_inclement] == 200 {
+            self.now_inclement += 1;
+            self.now_inclement %= 3;
+        }
+        self.rgb[self.now_inclement] += COLOR_STEP;
+        self.rgb[(self.now_inclement + 1) % 3] -= COLOR_STEP;
+        let next_color = format!("\x1b[38;2;{};{};{}m", self.rgb[0], self.rgb[1], self.rgb[2]);
+        Some(next_color)
+    }
+}
+
 struct Lines {
     lines: Vec<Vec<char>>,
+    colors: Vec<String>,
     afk_aa: AfkAA,
+    colorizer: Colorizer,
 }
 impl Lines {
     fn new() -> Self {
@@ -89,6 +122,8 @@ impl Lines {
         Self {
             lines: vec![Vec::new(); afk_aa.height()],
             afk_aa,
+            colors: Vec::new(),
+            colorizer: Colorizer::new(),
         }
     }
 
@@ -113,6 +148,8 @@ impl Lines {
 
     fn add_vertical_line(&mut self) -> usize {
         let nxt = self.afk_aa.next().unwrap();
+        self.colors.extend(self.colorizer.by_ref().take(8));
+        self.colors = self.colors[7..].to_vec();
         self.lines
             .iter_mut()
             .zip(nxt.into_iter())
@@ -127,6 +164,7 @@ impl Lines {
             self.lines.iter_mut().for_each(|line| {
                 line.remove(0);
             });
+            self.colors.remove(0);
             Ok(self.lines[0].len())
         }
     }
@@ -135,7 +173,13 @@ impl Lines {
         self.lines
             .clone()
             .into_iter()
-            .map(|line| line.iter().collect())
+            .map(|line| {
+                let colors = self.colors.clone();
+                let elements = colors.into_iter().zip(line.into_iter());
+                let mut colored_line = elements.map(|(color, ch)| format!("{}{}", color, ch)).collect::<String>();
+                colored_line.push_str(DEFAULT_COLOR);
+                colored_line
+            })
             .collect()
     }
 }
@@ -200,6 +244,8 @@ impl Timer {
 }
 
 fn main() {
+    assert_eq!((COLOR_MAX - COLOR_MIN) % COLOR_STEP, 0);
+    assert!(COLOR_MIN < COLOR_MAX);
     let saved_terattr = get_terattr_from_os();
 
     {
