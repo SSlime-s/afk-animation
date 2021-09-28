@@ -1,5 +1,5 @@
 # AFK Animation
-![AFK_anime](https://user-images.githubusercontent.com/62363188/132410865-27646175-2dc2-40ed-8c15-dfe1afa1e3b1.gif)
+![rainbow_AFK_anime](https://user-images.githubusercontent.com/62363188/135102021-bf9f885e-035a-4229-aab7-8b2f42b69213.gif)
 ## install
 `cargo install --git https://github.com/SSlime-s/afk-animation`
 
