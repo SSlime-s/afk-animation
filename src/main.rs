@@ -270,6 +270,8 @@ fn main() {
 
     let mut timer = Timer::start();
 
+    // hide cursor
+    print!("\x1b[?25l");
     let mut lines = Lines::new();
     {
         let width = get_terminal_width().expect("Failed to get terminal Width");
@@ -316,8 +318,9 @@ fn main() {
         println!("\x1b[K{}{}", colored_line, DEFAULT_COLOR);
     }
 
+    // \x1b[?25h -> show cursor
     println!(
-        "\x1b[Kleft from {} to {} ({})",
+        "\x1b[?25h\x1b[Kleft from {} to {} ({})",
         timer.formatted_start(),
         timer.formatted_end(),
         timer.formatted_duration(),
