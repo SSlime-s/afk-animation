@@ -5,6 +5,7 @@ use chrono::{
 use ctrlc;
 use rand::Rng;
 use std::{
+    collections::VecDeque,
     sync::{Arc, Mutex},
     thread,
     time::{self},
@@ -112,8 +113,8 @@ impl Iterator for Colorizer {
 }
 
 struct Lines {
-    lines: Vec<Vec<char>>,
-    colors: Vec<String>,
+    lines: Vec<VecDeque<char>>,
+    colors: VecDeque<String>,
     afk_aa: AfkAA,
     colorizer: Colorizer,
 }
@@ -121,9 +122,9 @@ impl Lines {
     fn new() -> Self {
         let afk_aa = AfkAA::new(20);
         Self {
-            lines: vec![Vec::new(); afk_aa.height()],
+            lines: vec![VecDeque::new(); afk_aa.height()],
             afk_aa,
-            colors: Vec::new(),
+            colors: VecDeque::new(),
             colorizer: Colorizer::new(),
         }
     }
@@ -150,11 +151,11 @@ impl Lines {
     fn add_vertical_line(&mut self) -> usize {
         let nxt = self.afk_aa.next().unwrap();
         self.colors.extend(self.colorizer.by_ref().take(8));
-        self.colors = self.colors[7..].to_vec();
+        self.colors = self.colors.split_off(7);
         self.lines
             .iter_mut()
             .zip(nxt.into_iter())
-            .for_each(|(base, new)| base.push(new));
+            .for_each(|(base, new)| base.push_back(new));
         self.lines[0].len()
     }
 
@@ -163,9 +164,9 @@ impl Lines {
             Err(())
         } else {
             self.lines.iter_mut().for_each(|line| {
-                line.remove(0);
+                line.pop_front();
             });
-            self.colors.remove(0);
+            self.colors.pop_front();
             Ok(self.lines[0].len())
         }
     }
