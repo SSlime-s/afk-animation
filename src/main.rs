@@ -178,7 +178,13 @@ impl Lines {
                 let colors = self.colors.clone();
                 let elements = colors.into_iter().zip(line.into_iter());
                 let mut colored_line = elements
-                    .map(|(color, ch)| format!("{}{}", color, ch))
+                    .map(|(color, ch)| {
+                        if ch == ' ' {
+                            ch.to_string()
+                        } else {
+                            format!("{}{}", color, ch)
+                        }
+                    })
                     .collect::<String>();
                 colored_line.push_str(DEFAULT_COLOR);
                 colored_line
