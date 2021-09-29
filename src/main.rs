@@ -2,16 +2,18 @@ use chrono::{
     format::{DelayedFormat, StrftimeItems},
     DateTime, Duration, Local,
 };
-use ctrlc;
 use rand::Rng;
 use std::{
     collections::VecDeque,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread,
     time::{self},
 };
 
-const BAK_AA: &'static str = r"
+const BAK_AA: &str = r"
  _________                       __    ___ 
 |   ____  \          /\         |  |  /  / 
 |  |    \  |        /  \        |  | /  /  
@@ -22,7 +24,7 @@ const BAK_AA: &'static str = r"
 |  |____/  |   /  /      \  \   |  | \  \  
 |_________/   /__/        \__\  |__|  \__\ 
 ";
-const AFK_AA: &'static str = r"
+const AFK_AA: &str = r"
                 ______________    __    ___
        /\      |__    ______  |  |  |  /  /
       /  \        |  |      |_|  |  | /  / 
@@ -34,7 +36,7 @@ const AFK_AA: &'static str = r"
 /__/        \__\  |__|           |__|  \__\
                                            ";
 
-const DEFAULT_COLOR: &'static str = "\x1b[0m";
+const DEFAULT_COLOR: &str = "\x1b[0m";
 
 struct AfkAA {
     idx: usize,
@@ -44,11 +46,11 @@ struct AfkAA {
 impl AfkAA {
     fn new(interval: usize) -> Self {
         let lines = AFK_AA
-            .trim_start_matches("\n")
+            .trim_start_matches('\n')
             .lines()
             .map(|x| x.chars().collect())
             .collect::<Vec<Vec<char>>>();
-        let verticals = (0..(&lines).into_iter().map(|x| x.len()).max().unwrap())
+        let verticals = (0..lines.iter().map(|x| x.len()).max().unwrap())
             .map(|i| {
                 (0..lines.len())
                     .map(|j| lines.get(j)?.get(i))
@@ -145,7 +147,7 @@ impl Lines {
             .expect("Failed to update AFK")
             >= limit
         {}
-        self.into_strings()
+        self.to_strings()
     }
 
     fn add_vertical_line(&mut self) -> usize {
@@ -160,7 +162,7 @@ impl Lines {
     }
 
     fn remove_first_vertical_line(&mut self) -> Result<usize, ()> {
-        if self.lines[0].len() == 0 {
+        if self.lines[0].is_empty() {
             Err(())
         } else {
             self.lines.iter_mut().for_each(|line| {
@@ -171,7 +173,7 @@ impl Lines {
         }
     }
 
-    fn into_strings(&self) -> Vec<String> {
+    fn to_strings(&self) -> Vec<String> {
         self.lines
             .clone()
             .into_iter()
@@ -254,13 +256,13 @@ impl Timer {
 }
 
 fn main() {
-    assert_eq!((COLOR_MAX - COLOR_MIN) % COLOR_STEP, 0);
     assert!(COLOR_MIN < COLOR_MAX);
+    assert_eq!((COLOR_MAX - COLOR_MIN) % COLOR_STEP, 0);
     let saved_terattr = get_terattr_from_os();
 
     {
         let mut termattr = saved_terattr;
-        termattr.c_lflag = termattr.c_lflag & !(libc::ICANON | libc::ECHO);
+        termattr.c_lflag &= !(libc::ICANON | libc::ECHO);
         termattr.c_cc[libc::VMIN] = 0;
         set_terattr(&termattr);
     }
@@ -268,10 +270,11 @@ fn main() {
 
     let mut buf: [libc::c_char; 1] = [0; 1];
     let ptr = &mut buf;
-    let is_ctrlc = Arc::new(Mutex::new(false));
+    let is_ctrlc = Arc::new(AtomicBool::new(false));
+    // let is_ctrlc = Arc::new(Mutex::new(false));
     {
         let is_ctrlc = Arc::clone(&is_ctrlc);
-        ctrlc::set_handler(move || *is_ctrlc.lock().unwrap() = true)
+        ctrlc::set_handler(move || is_ctrlc.store(true, Ordering::SeqCst))
             .expect("Failed to set ctrlc handler");
     }
 
@@ -286,7 +289,7 @@ fn main() {
     }
     loop {
         let input = unsafe { libc::read(0, ptr.as_ptr() as *mut libc::c_void, 1) };
-        if input > 0 || *is_ctrlc.lock().unwrap() {
+        if input > 0 || is_ctrlc.load(Ordering::SeqCst) {
             break;
         }
         thread::sleep(time::Duration::from_millis(100));
@@ -307,18 +310,18 @@ fn main() {
         .skip(random_skip)
         .take(
             BAK_AA
-                .trim_start_matches("\n")
+                .trim_start_matches('\n')
                 .lines()
                 .next()
                 .unwrap()
                 .len(),
         )
         .collect::<Vec<_>>();
-    for line in BAK_AA.trim_start_matches("\n").lines() {
+    for line in BAK_AA.trim_start_matches('\n').lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
         let shrunk_line = line[0..lines.now_width().min(line.len())].to_string();
-        let colored_line = (&colors)
-            .into_iter()
+        let colored_line = colors
+            .iter()
             .zip(shrunk_line.chars())
             .map(|(color, ch)| format!("{}{}", color, ch))
             .collect::<String>();
@@ -340,22 +343,11 @@ fn get_terminal_width() -> Result<usize, ()> {
     std::process::Command::new("tput")
         .arg("cols")
         .output()
-        .map_err(|e| {
-            eprintln!("{}", e);
-            ()
-        })
+        .map_err(|_e| ())
         .and_then(|output| {
             std::str::from_utf8(&output.stdout)
-                .map_err(|e| {
-                    eprintln!("{}", e);
-                    ()
-                })
-                .and_then(|width_str| {
-                    width_str.trim().parse::<usize>().map_err(|e| {
-                        eprintln!("{}", e);
-                        ()
-                    })
-                })
+                .map_err(|_e| ())
+                .and_then(|width_str| width_str.trim().parse::<usize>().map_err(|_e| ()))
         })
 }
 
