@@ -135,10 +135,6 @@ impl Lines {
         self.lines.len()
     }
 
-    fn now_width(&self) -> usize {
-        self.lines[0].len()
-    }
-
     fn update(&mut self, limit: usize) -> Vec<String> {
         assert!(limit > 0);
         while self.add_vertical_line() < limit {}
@@ -212,7 +208,9 @@ fn main() {
     let mut timer = crate::logic::timer::Timer::start();
 
     // hide cursor
-    print!("\x1b[?25l");
+    // print!("\x1b[?25l");
+    // disable fold back
+    print!("\x1b[?7l");
     let mut lines = Lines::new(config.colored);
     {
         let width = get_terminal_width().expect("Failed to get terminal Width");
@@ -275,23 +273,20 @@ fn main() {
         )
         .collect::<Vec<_>>();
     for line in BAK_AA.trim_start_matches('\n').lines() {
-        let shrunk_line = line[0..lines.now_width().min(line.len())].to_string();
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
         print!("\x1b[K");
         if config.colored {
             let colored_line = colors
                 .iter()
-                .zip(shrunk_line.chars())
+                .zip(line.chars())
                 .map(|(color, ch)| format!("{}{}", color, ch))
                 .collect::<String>();
             println!("{}{}", colored_line, DEFAULT_COLOR);
         } else {
-            println!("{}", shrunk_line);
+            println!("{}", line);
         }
     }
 
-    // \x1b[?25h -> show cursor
-    print!("\x1b[?25h");
     if config.show_timestamp {
         print!(
             "\x1b[Kleft from {} to {} ({})",
@@ -302,11 +297,18 @@ fn main() {
     }
     if let Some(reason) = &config.reason {
         if config.show_timestamp {
-            println!(" | reason: {}", reason);
+            print!(" | reason: {}", reason);
         } else {
-            println!("reason: {}", reason);
+            print!("reason: {}", reason);
         }
-    } else {
-        std::io::stdout().flush().unwrap();
     }
+    // \x1b[?25h -> show cursor
+    print!("\x1b[?25h");
+    // \x1b[?7h -> enable fold back
+    print!("\x1b[?7h");
+    if config.show_timestamp || config.reason.is_some() {
+        // clear line
+        print!("\n\x1b[K");
+    }
+    std::io::stdout().flush().unwrap();
 }
