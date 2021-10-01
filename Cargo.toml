@@ -1,6 +1,6 @@
 [package]
 name = "afk"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["SSlime-s <62363188+SSlime-s@users.noreply.github.com>"]
 edition = "2018"
 repository = "https://github.com/SSlime-s/afk-animation"
