@@ -47,7 +47,7 @@ impl Timer {
             format!(
                 "{}m{}s",
                 duration.num_minutes(),
-                duration.num_minutes() % 60
+                duration.num_seconds() % 60
             )
         } else {
             format!(
