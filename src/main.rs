@@ -210,7 +210,6 @@ fn main() {
     let mut buf: [libc::c_char; 1] = [0; 1];
     let ptr = &mut buf;
     let is_ctrlc = Arc::new(AtomicBool::new(false));
-    // let is_ctrlc = Arc::new(Mutex::new(false));
     {
         let is_ctrlc = Arc::clone(&is_ctrlc);
         ctrlc::set_handler(move || is_ctrlc.store(true, Ordering::SeqCst))
