@@ -1,8 +1,10 @@
+mod command;
 mod logic;
 
 use rand::Rng;
 use std::{
     collections::VecDeque,
+    io::Write,
     thread,
     time::{self},
 };
@@ -115,24 +117,22 @@ struct Lines {
     colors: VecDeque<String>,
     afk_aa: AfkAA,
     colorizer: Colorizer,
+    colored: bool,
 }
 impl Lines {
-    fn new() -> Self {
+    fn new(colored: bool) -> Self {
         let afk_aa = AfkAA::new(20);
         Self {
             lines: vec![VecDeque::new(); afk_aa.height()],
             afk_aa,
             colors: VecDeque::new(),
             colorizer: Colorizer::new(),
+            colored,
         }
     }
 
     fn height(&self) -> usize {
         self.lines.len()
-    }
-
-    fn now_width(&self) -> usize {
-        self.lines[0].len()
     }
 
     fn update(&mut self, limit: usize) -> Vec<String> {
@@ -148,12 +148,14 @@ impl Lines {
 
     fn add_vertical_line(&mut self) -> usize {
         let nxt = self.afk_aa.next().unwrap();
-        self.colors.extend(self.colorizer.by_ref().take(8));
-        self.colors = self.colors.split_off(7);
         self.lines
             .iter_mut()
             .zip(nxt.into_iter())
             .for_each(|(base, new)| base.push_back(new));
+        if self.colored {
+            self.colors.extend(self.colorizer.by_ref().take(8));
+            self.colors = self.colors.split_off(7);
+        }
         self.lines[0].len()
     }
 
@@ -164,7 +166,9 @@ impl Lines {
             self.lines.iter_mut().for_each(|line| {
                 line.pop_front();
             });
-            self.colors.pop_front();
+            if self.colored {
+                self.colors.pop_front();
+            }
             Ok(self.lines[0].len())
         }
     }
@@ -174,19 +178,23 @@ impl Lines {
             .clone()
             .into_iter()
             .map(|line| {
-                let colors = self.colors.clone();
-                let elements = colors.into_iter().zip(line.into_iter());
-                let mut colored_line = elements
-                    .map(|(color, ch)| {
-                        if ch == ' ' {
-                            ch.to_string()
-                        } else {
-                            format!("{}{}", color, ch)
-                        }
-                    })
-                    .collect::<String>();
-                colored_line.push_str(DEFAULT_COLOR);
-                colored_line
+                if self.colored {
+                    let colors = self.colors.clone();
+                    let elements = colors.into_iter().zip(line.into_iter());
+                    let mut colored_line = elements
+                        .map(|(color, ch)| {
+                            if ch == ' ' {
+                                ch.to_string()
+                            } else {
+                                format!("{}{}", color, ch)
+                            }
+                        })
+                        .collect::<String>();
+                    colored_line.push_str(DEFAULT_COLOR);
+                    colored_line
+                } else {
+                    line.into_iter().collect::<String>()
+                }
             })
             .collect()
     }
@@ -195,12 +203,15 @@ impl Lines {
 fn main() {
     assert!(COLOR_MIN < COLOR_MAX);
     assert_eq!((COLOR_MAX - COLOR_MIN) % COLOR_STEP, 0);
+    let config = crate::command::Config::new();
     let mut key_manager = crate::logic::terminal::KeyManager::new();
     let mut timer = crate::logic::timer::Timer::start();
 
     // hide cursor
-    print!("\x1b[?25l");
-    let mut lines = Lines::new();
+    // print!("\x1b[?25l");
+    // disable fold back
+    print!("\x1b[?7l");
+    let mut lines = Lines::new(config.colored);
     {
         let width = get_terminal_width().expect("Failed to get terminal Width");
         println!("{}", lines.update(width).join("\n"));
@@ -209,17 +220,44 @@ fn main() {
         if key_manager.check() {
             break;
         }
-        thread::sleep(time::Duration::from_millis(100));
+        thread::sleep(time::Duration::from_millis(config.fps));
 
         let width = get_terminal_width().expect("Failed to get terminal Width");
 
-        print!("\x1b[{}F", lines.height() + 1);
+        print!(
+            "\x1b[{}F",
+            lines.height()
+                + if config.show_timestamp || config.reason.is_some() {
+                    1
+                } else {
+                    0
+                }
+        );
         println!("{}", lines.update(width).join("\n"));
-        println!("left from {}", timer.formatted_start());
+        if config.show_timestamp {
+            print!("left from {}", timer.formatted_start());
+        }
+        if let Some(reason) = &config.reason {
+            if config.show_timestamp {
+                println!(" | reason: {}", reason);
+            } else {
+                println!("reason: {}", reason);
+            }
+        } else if config.show_timestamp {
+            println!();
+        }
     }
     timer.finish();
 
-    print!("\x1b[{}F", lines.height() + 1);
+    print!(
+        "\x1b[{}F",
+        lines.height()
+            + if config.show_timestamp || config.reason.is_some() {
+                1
+            } else {
+                0
+            }
+    );
     let colorizer = Colorizer::new();
     let random_skip: usize =
         rand::thread_rng().gen_range(0..(COLOR_MAX - COLOR_MIN) / COLOR_STEP * 3) as usize;
@@ -236,20 +274,41 @@ fn main() {
         .collect::<Vec<_>>();
     for line in BAK_AA.trim_start_matches('\n').lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
-        let shrunk_line = line[0..lines.now_width().min(line.len())].to_string();
-        let colored_line = colors
-            .iter()
-            .zip(shrunk_line.chars())
-            .map(|(color, ch)| format!("{}{}", color, ch))
-            .collect::<String>();
-        println!("\x1b[K{}{}", colored_line, DEFAULT_COLOR);
+        print!("\x1b[K");
+        if config.colored {
+            let colored_line = colors
+                .iter()
+                .zip(line.chars())
+                .map(|(color, ch)| format!("{}{}", color, ch))
+                .collect::<String>();
+            println!("{}{}", colored_line, DEFAULT_COLOR);
+        } else {
+            println!("{}", line);
+        }
     }
 
+    if config.show_timestamp {
+        print!(
+            "\x1b[Kleft from {} to {} ({})",
+            timer.formatted_start(),
+            timer.formatted_end(),
+            timer.formatted_duration(),
+        );
+    }
+    if let Some(reason) = &config.reason {
+        if config.show_timestamp {
+            print!(" | reason: {}", reason);
+        } else {
+            print!("reason: {}", reason);
+        }
+    }
     // \x1b[?25h -> show cursor
-    println!(
-        "\x1b[?25h\x1b[Kleft from {} to {} ({})",
-        timer.formatted_start(),
-        timer.formatted_end(),
-        timer.formatted_duration(),
-    );
+    print!("\x1b[?25h");
+    // \x1b[?7h -> enable fold back
+    print!("\x1b[?7h");
+    if config.show_timestamp || config.reason.is_some() {
+        // clear line
+        print!("\n\x1b[K");
+    }
+    std::io::stdout().flush().unwrap();
 }
