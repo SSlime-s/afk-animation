@@ -208,7 +208,7 @@ fn main() {
     let mut timer = crate::logic::timer::Timer::start();
 
     // hide cursor
-    // print!("\x1b[?25l");
+    print!("\x1b[?25l");
     // disable fold back
     print!("\x1b[?7l");
     let mut lines = Lines::new(config.colored);
