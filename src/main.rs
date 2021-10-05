@@ -97,6 +97,10 @@ impl Colorizer {
             now_inclement: 0,
         }
     }
+
+    fn to_ansi_color(&self) -> String {
+        format!("\x1b[38;2;{};{};{}m", self.rgb[0], self.rgb[1], self.rgb[2])
+    }
 }
 impl Iterator for Colorizer {
     type Item = String;
@@ -107,8 +111,7 @@ impl Iterator for Colorizer {
         }
         self.rgb[self.now_inclement] += COLOR_STEP;
         self.rgb[(self.now_inclement + 1) % 3] -= COLOR_STEP;
-        let next_color = format!("\x1b[38;2;{};{};{}m", self.rgb[0], self.rgb[1], self.rgb[2]);
-        Some(next_color)
+        Some(self.to_ansi_color())
     }
 }
 
