@@ -237,17 +237,11 @@ fn main() {
                 }
         );
         println!("{}", lines.update(width).join("\n"));
-        if config.show_timestamp {
-            print!("left from {}", timer.formatted_start());
-        }
-        if let Some(reason) = &config.reason {
-            if config.show_timestamp {
-                println!(" | reason: {}", reason);
-            } else {
-                println!("reason: {}", reason);
-            }
-        } else if config.show_timestamp {
-            println!();
+        if let Some(message) = generate_footer_message(
+            Some(&timer).filter(|_| config.show_timestamp),
+            &config.reason,
+        ) {
+            println!("{}", message);
         }
     }
     timer.finish();
@@ -289,22 +283,13 @@ fn main() {
             println!("{}", line);
         }
     }
+    if let Some(message) = generate_footer_message(
+        Some(&timer).filter(|_| config.show_timestamp),
+        &config.reason,
+    ) {
+        print!("{}", message)
+    }
 
-    if config.show_timestamp {
-        print!(
-            "\x1b[Kleft from {} to {} ({})",
-            timer.formatted_start(),
-            timer.formatted_end(),
-            timer.formatted_duration(),
-        );
-    }
-    if let Some(reason) = &config.reason {
-        if config.show_timestamp {
-            print!(" | reason: {}", reason);
-        } else {
-            print!("reason: {}", reason);
-        }
-    }
     // \x1b[?25h -> show cursor
     print!("\x1b[?25h");
     // \x1b[?7h -> enable fold back
@@ -314,4 +299,30 @@ fn main() {
         print!("\n\x1b[K");
     }
     std::io::stdout().flush().unwrap();
+}
+
+fn generate_footer_message(
+    timer: Option<&crate::logic::timer::Timer>,
+    reason: &Option<String>,
+) -> Option<String> {
+    let formatted_timer = timer.map(|timer| {
+        if timer.is_measuring() {
+            format!("left from {}", timer.formatted_start())
+        } else {
+            format!(
+                "\x1b[Kleft from {} to {} ({})",
+                timer.formatted_start(),
+                timer.formatted_end(),
+                timer.formatted_duration(),
+            )
+        }
+    });
+    match (formatted_timer, reason) {
+        (Some(formatted_timer), Some(reason)) => {
+            Some(format!("{} | reason: {}", formatted_timer, reason))
+        }
+        (Some(formatted_timer), None) => Some(formatted_timer),
+        (None, Some(reason)) => Some(format!("reason: {}", reason)),
+        (None, None) => None,
+    }
 }

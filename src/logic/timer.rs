@@ -60,6 +60,10 @@ impl Timer {
             )
         }
     }
+
+    pub fn is_measuring(&self) -> bool {
+        matches!(self, Self::Measuring(_))
+    }
 }
 
 #[cfg(test)]
