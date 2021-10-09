@@ -105,6 +105,8 @@ impl Colorizer {
 impl Iterator for Colorizer {
     type Item = String;
     fn next(&mut self) -> Option<Self::Item> {
+        assert!(self.rgb.len() == 3);
+        assert!(self.now_inclement < 3);
         if self.rgb[self.now_inclement] == COLOR_MAX {
             self.now_inclement += 1;
             self.now_inclement %= 3;
