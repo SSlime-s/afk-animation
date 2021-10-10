@@ -99,6 +99,7 @@ impl Colorizer {
     }
 
     fn to_ansi_color(&self) -> String {
+        assert!(self.rgb.len() == 3);
         format!("\x1b[38;2;{};{};{}m", self.rgb[0], self.rgb[1], self.rgb[2])
     }
 }
