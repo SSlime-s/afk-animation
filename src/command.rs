@@ -22,6 +22,10 @@ impl Config {
             },
         }
     }
+
+    pub fn is_exist_footer(&self) -> bool {
+        self.show_timestamp || self.reason.is_some()
+    }
 }
 
 fn create_app<'a, 'b>() -> App<'a, 'b> {

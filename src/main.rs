@@ -232,12 +232,7 @@ fn main() {
 
         print!(
             "\x1b[{}F",
-            lines.height()
-                + if config.show_timestamp || config.reason.is_some() {
-                    1
-                } else {
-                    0
-                }
+            lines.height() + if config.is_exist_footer() { 1 } else { 0 }
         );
         println!("{}", lines.update(width).join("\n"));
         if let Some(message) = generate_footer_message(
@@ -251,12 +246,7 @@ fn main() {
 
     print!(
         "\x1b[{}F",
-        lines.height()
-            + if config.show_timestamp || config.reason.is_some() {
-                1
-            } else {
-                0
-            }
+        lines.height() + if config.is_exist_footer() { 1 } else { 0 }
     );
     let colorizer = Colorizer::new();
     let random_skip: usize =
@@ -297,7 +287,7 @@ fn main() {
     print!("\x1b[?25h");
     // \x1b[?7h -> enable fold back
     print!("\x1b[?7h");
-    if config.show_timestamp || config.reason.is_some() {
+    if config.is_exist_footer() {
         // clear line
         print!("\n\x1b[K");
     }
