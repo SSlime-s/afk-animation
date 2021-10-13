@@ -180,6 +180,7 @@ impl Lines {
     }
 
     fn to_strings(&self) -> Vec<String> {
+        assert!(self.lines.first().unwrap().len() == self.colors.len());
         self.lines
             .clone()
             .into_iter()
