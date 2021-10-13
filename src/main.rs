@@ -210,6 +210,7 @@ impl Lines {
 fn main() {
     assert!(COLOR_MIN < COLOR_MAX);
     assert_eq!((COLOR_MAX - COLOR_MIN) % COLOR_STEP, 0);
+
     let config = crate::command::Config::new();
     let mut key_manager = crate::logic::terminal::KeyManager::new();
     let mut timer = crate::logic::timer::Timer::start();
@@ -223,6 +224,7 @@ fn main() {
         let width = get_terminal_width().expect("Failed to get terminal Width");
         println!("{}", lines.update(width).join("\n"));
     }
+
     loop {
         if key_manager.check() {
             break;
