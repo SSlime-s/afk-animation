@@ -99,14 +99,14 @@ impl Colorizer {
     }
 
     fn to_ansi_color(&self) -> String {
-        assert!(self.rgb.len() == 3);
+        assert_eq!(self.rgb.len(), 3);
         format!("\x1b[38;2;{};{};{}m", self.rgb[0], self.rgb[1], self.rgb[2])
     }
 }
 impl Iterator for Colorizer {
     type Item = String;
     fn next(&mut self) -> Option<Self::Item> {
-        assert!(self.rgb.len() == 3);
+        assert_eq!(self.rgb.len(), 3);
         assert!(self.now_inclement < 3);
         if self.rgb[self.now_inclement] == COLOR_MAX {
             self.now_inclement += 1;
@@ -180,7 +180,7 @@ impl Lines {
     }
 
     fn to_strings(&self) -> Vec<String> {
-        assert!(self.lines.first().unwrap().len() == self.colors.len());
+        assert_eq!(self.lines.first().unwrap().len(), self.colors.len());
         self.lines
             .clone()
             .into_iter()
