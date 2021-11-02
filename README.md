@@ -11,3 +11,21 @@ or
 `afk` on console
 
 When you back at keyboard, press any button.
+
+### args
+```
+USAGE:
+    afk [FLAGS] [OPTIONS] [reason]
+
+FLAGS:
+    -h, --help                 Prints help information
+    -V, --version              Prints version information
+    -C, --without-color        Disable color output
+    -T, --without-timestamp    Disable timestamp output
+
+OPTIONS:
+    -s, --speed <speed>    Set the speed of the animation [possible values: fast, normal, slow]
+
+ARGS:
+    <reason>
+```
