@@ -5,7 +5,7 @@
 
 or
 
-`cargo install --git https://github.com/SSlime-s/afk-animation --tag v1.0.0`
+`cargo install --git https://github.com/SSlime-s/afk-animation --tag v1.0.1`
 
 ## usage
 `afk` on console
@@ -14,18 +14,16 @@ When you back at keyboard, press any button.
 
 ### args
 ```
-USAGE:
-    afk [FLAGS] [OPTIONS] [reason]
+Usage: afk [OPTIONS] [REASON]
 
-FLAGS:
-    -h, --help                 Prints help information
-    -V, --version              Prints version information
-    -C, --without-color        Disable color output
-    -T, --without-timestamp    Disable timestamp output
+Arguments:
+  [REASON]  Reason for AFK (optional)
 
-OPTIONS:
-    -s, --speed <speed>    Set the speed of the animation [possible values: fast, normal, slow]
+Options:
+  -C, --without-color      Disable color output
+  -T, --without-timestamp  Disable timestamp output
+  -s, --speed <SPEED>      Set the speed of the animation [possible values: fast, normal, slow]
+  -h, --help               Print help
+  -V, --version            Print version
 
-ARGS:
-    <reason>
 ```
