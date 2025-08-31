@@ -282,7 +282,7 @@ fn main() -> Result<()> {
 fn queue_bak(config: &crate::command::Config, timer: &crate::logic::timer::Timer) -> Result<()> {
     let colorizer = Colorizer::new();
     let random_skip: usize =
-        rand::thread_rng().gen_range(0..(COLOR_MAX - COLOR_MIN) / COLOR_STEP * 3) as usize;
+        rand::rng().random_range(0..(COLOR_MAX - COLOR_MIN) / COLOR_STEP * 3) as usize;
     let colors = colorizer
         .skip(random_skip)
         .take(
