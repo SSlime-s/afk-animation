@@ -1,4 +1,4 @@
-use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
+use clap::{builder::styling, Parser};
 
 pub struct Config {
     pub reason: Option<String>,
@@ -8,13 +8,12 @@ pub struct Config {
 }
 impl Config {
     pub fn new() -> Config {
-        let app = create_app();
-        let matches = app.get_matches();
+        let args = Args::parse();
         Config {
-            reason: matches.value_of("reason").map(|s| s.to_string()),
-            colored: !matches.is_present("without_color"),
-            show_timestamp: !matches.is_present("without_timestamp"),
-            fps: match matches.value_of("speed").unwrap() {
+            reason: args.reason,
+            colored: !args.without_color,
+            show_timestamp: !args.without_timestamp,
+            fps: match args.speed.as_str() {
                 "slow" => 150,
                 "normal" => 100,
                 "fast" => 75,
@@ -28,34 +27,25 @@ impl Config {
     }
 }
 
-fn create_app<'a, 'b>() -> App<'a, 'b> {
-    App::new(crate_name!())
-        .version(crate_version!())
-        .author(crate_authors!())
-        .about(crate_description!())
-        .arg(Arg::with_name("reason").index(1))
-        .arg(
-            Arg::with_name("without_color")
-                .long("without-color")
-                .short("C")
-                .help("Disable color output"),
-        )
-        .arg(
-            Arg::with_name("without_timestamp")
-                .long("without-timestamp")
-                .short("T")
-                .help("Disable timestamp output"),
-        )
-        .arg(
-            Arg::with_name("speed")
-                .long("speed")
-                .short("s")
-                .help("Set the speed of the animation")
-                .takes_value(true)
-                .possible_value("fast")
-                .possible_value("normal")
-                .possible_value("slow")
-                .default_value("normal")
-                .hide_default_value(true),
-        )
+#[derive(Parser, Debug)]
+#[command(author, version, about, styles = get_styles())]
+pub struct Args {
+    #[arg(help = "Reason for AFK (optional)")]
+    reason: Option<String>,
+
+    #[arg(short = 'C', long, help = "Disable color output")]
+    without_color: bool,
+
+    #[arg(short = 'T', long, help = "Disable timestamp output")]
+    without_timestamp: bool,
+
+    #[arg(short, long, help = "Set the speed of the animation", value_parser = ["fast", "normal", "slow"], default_value = "normal", hide_default_value = true)]
+    speed: String,
+}
+
+fn get_styles() -> clap::builder::Styles {
+    clap::builder::Styles::default()
+        .header(styling::AnsiColor::Yellow.on_default().bold().underline())
+        .usage(styling::AnsiColor::Yellow.on_default().bold().underline())
+        .literal(styling::AnsiColor::Green.on_default())
 }

@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 chrono = "0.4"
-libc = "0.2"
-ctrlc = "3.2"
-rand = "0.8"
-clap = "2.33.3"
+rand = "0.9.2"
+crossterm = "0.29.0"
+anyhow = "1.0.99"
+clap = { version = "4.5.46", features = ["derive"] }
