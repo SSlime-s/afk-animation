@@ -5,7 +5,7 @@ use anyhow::{ensure, Context as _, Result};
 use crossterm::{
     cursor::{Hide, Show},
     execute,
-    style::Print,
+    style::{style, Color, Print, Stylize as _},
     terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use rand::Rng;
@@ -40,8 +40,6 @@ const AFK_AA: &str = r"
  /  /      \  \   |  |           |  | \  \ 
 /__/        \__\  |__|           |__|  \__\
                                            ";
-
-const DEFAULT_COLOR: &str = "\x1b[0m";
 
 struct AfkAA {
     idx: usize,
@@ -115,13 +113,17 @@ impl Colorizer {
         }
     }
 
-    fn to_ansi_color(&self) -> String {
+    fn to_ansi_color(&self) -> Color {
         assert_eq!(self.rgb.len(), 3);
-        format!("\x1b[38;2;{};{};{}m", self.rgb[0], self.rgb[1], self.rgb[2])
+        Color::Rgb {
+            r: self.rgb[0],
+            g: self.rgb[1],
+            b: self.rgb[2],
+        }
     }
 }
 impl Iterator for Colorizer {
-    type Item = String;
+    type Item = Color;
     fn next(&mut self) -> Option<Self::Item> {
         assert_eq!(self.rgb.len(), 3);
         assert!(self.now_inclement < 3);
@@ -137,7 +139,7 @@ impl Iterator for Colorizer {
 
 struct Lines {
     lines: Vec<VecDeque<char>>,
-    colors: VecDeque<String>,
+    colors: VecDeque<Color>,
     afk_aa: AfkAA,
     colorizer: Colorizer,
     colored: bool,
@@ -206,17 +208,16 @@ impl Lines {
                 if self.colored {
                     let colors = self.colors.clone();
                     let elements = colors.into_iter().zip(line);
-                    let mut colored_line = elements
+
+                    elements
                         .map(|(color, ch)| {
                             if ch == ' ' {
                                 ch.to_string()
                             } else {
-                                format!("{}{}", color, ch)
+                                format!("{}", style(ch).with(color))
                             }
                         })
-                        .collect::<String>();
-                    colored_line.push_str(DEFAULT_COLOR);
-                    colored_line
+                        .collect::<String>()
                 } else {
                     line.into_iter().collect::<String>()
                 }
@@ -272,7 +273,6 @@ fn main() -> Result<()> {
     execute!(stdout(), Show)?;
     if config.is_exist_footer() {
         // clear line
-        // print!("\n\x1b[K");
         execute!(stdout(), Print("\n"), Clear(ClearType::CurrentLine))?;
     }
     std::io::stdout().flush()?;
@@ -301,9 +301,10 @@ fn print_bak(config: &crate::command::Config, timer: &crate::logic::timer::Timer
             let colored_line = colors
                 .iter()
                 .zip(line.chars())
-                .map(|(color, ch)| format!("{}{}", color, ch))
+                .map(|(color, ch)| style(ch).with(*color))
+                .map(|s| s.to_string())
                 .collect::<String>();
-            println!("{}{}", colored_line, DEFAULT_COLOR);
+            println!("{}", colored_line);
         } else {
             println!("{}", line);
         }
