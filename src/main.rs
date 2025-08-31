@@ -222,6 +222,8 @@ fn main() {
     print!("\x1b[?25l");
     // disable fold back
     print!("\x1b[?7l");
+    // to alternative screen
+    print!("\x1b[?1049h");
     let mut lines = Lines::new(config.colored);
     {
         let width = get_terminal_width().expect("Failed to get terminal Width");
@@ -250,10 +252,6 @@ fn main() {
     }
     timer.finish();
 
-    print!(
-        "\x1b[{}F",
-        lines.height() + if config.is_exist_footer() { 1 } else { 0 }
-    );
     let colorizer = Colorizer::new();
     let random_skip: usize =
         rand::thread_rng().gen_range(0..(COLOR_MAX - COLOR_MIN) / COLOR_STEP * 3) as usize;
@@ -268,6 +266,8 @@ fn main() {
                 .len(),
         )
         .collect::<Vec<_>>();
+    // to normal screen
+    print!("\x1b[?1049l");
     for line in BAK_AA.trim_start_matches('\n').lines() {
         // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
         print!("\x1b[K");
