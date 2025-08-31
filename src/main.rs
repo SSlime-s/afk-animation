@@ -86,6 +86,12 @@ impl Iterator for AfkAA {
 const COLOR_MIN: u8 = 30;
 const COLOR_MAX: u8 = 200;
 const COLOR_STEP: u8 = 5;
+
+const _: () = {
+    assert!(COLOR_MIN < COLOR_MAX);
+    assert!((COLOR_MAX - COLOR_MIN) % COLOR_STEP == 0);
+};
+
 struct Colorizer {
     rgb: Vec<u8>,
     now_inclement: usize,
@@ -156,7 +162,7 @@ impl Lines {
         let nxt = self.afk_aa.next().unwrap();
         self.lines
             .iter_mut()
-            .zip(nxt.into_iter())
+            .zip(nxt)
             .for_each(|(base, new)| base.push_back(new));
         if self.colored {
             self.colors.extend(self.colorizer.by_ref().take(8));
@@ -187,7 +193,7 @@ impl Lines {
             .map(|line| {
                 if self.colored {
                     let colors = self.colors.clone();
-                    let elements = colors.into_iter().zip(line.into_iter());
+                    let elements = colors.into_iter().zip(line);
                     let mut colored_line = elements
                         .map(|(color, ch)| {
                             if ch == ' ' {
@@ -208,9 +214,6 @@ impl Lines {
 }
 
 fn main() {
-    assert!(COLOR_MIN < COLOR_MAX);
-    assert_eq!((COLOR_MAX - COLOR_MIN) % COLOR_STEP, 0);
-
     let config = crate::command::Config::new();
     let mut key_manager = crate::logic::terminal::KeyManager::new();
     let mut timer = crate::logic::timer::Timer::start();
