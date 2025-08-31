@@ -4,9 +4,12 @@ mod logic;
 use anyhow::{ensure, Context as _, Result};
 use crossterm::{
     cursor::{Hide, Show},
-    execute,
+    execute, queue,
     style::{style, Color, Print, Stylize as _},
-    terminal::{Clear, ClearType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        Clear, ClearType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
 };
 use rand::Rng;
 use std::{
@@ -224,7 +227,7 @@ impl Lines {
 
 fn main() -> Result<()> {
     let config = crate::command::Config::new();
-    let mut key_manager = crate::logic::terminal::KeyManager::new()?;
+    let key_manager = crate::logic::terminal::KeyManager::new()?;
     let mut timer = crate::logic::timer::Timer::start();
 
     execute!(stdout(), Hide, EnterAlternateScreen, DisableLineWrap)?;
@@ -232,7 +235,8 @@ fn main() -> Result<()> {
     let mut lines = Lines::new(config.colored)?;
     {
         let width = get_terminal_width()?;
-        println!("{}", lines.update(width)?.join("\n"));
+        write!(stdout(), "{}\r\n", lines.update(width)?.join("\r\n"))?;
+        stdout().flush()?;
     }
 
     loop {
@@ -244,31 +248,38 @@ fn main() -> Result<()> {
         let width = get_terminal_width()?;
 
         let lines = lines.update(width)?;
-        execute!(stdout(), Clear(ClearType::All), Print(lines.join("\n")), Print("\n"))?;
+        queue!(
+            stdout(),
+            Clear(ClearType::All),
+            Print(lines.join("\r\n")),
+            Print("\r\n")
+        )?;
 
         if let Some(message) = generate_footer_message(
             Some(&timer).filter(|_| config.show_timestamp),
             &config.reason,
         ) {
-            println!("{}", message);
+            queue!(stdout(), Print(message), Print("\r\n"))?;
         }
+
+        stdout().flush()?;
     }
     timer.finish();
 
-    execute!(stdout(), LeaveAlternateScreen)?;
+    execute!(stdout(), LeaveAlternateScreen, EnableLineWrap)?;
 
-    print_bak(&config, &timer)?;
+    queue_bak(&config, &timer)?;
 
-    execute!(stdout(), Show, EnableLineWrap)?;
+    queue!(stdout(), Show)?;
     if config.is_exist_footer() {
-        execute!(stdout(), Print("\n"), Clear(ClearType::CurrentLine))?;
+        queue!(stdout(), Print("\n"), Clear(ClearType::CurrentLine))?;
     }
     std::io::stdout().flush()?;
 
     Ok(())
 }
 
-fn print_bak(config: &crate::command::Config, timer: &crate::logic::timer::Timer) -> Result<()> {
+fn queue_bak(config: &crate::command::Config, timer: &crate::logic::timer::Timer) -> Result<()> {
     let colorizer = Colorizer::new();
     let random_skip: usize =
         rand::thread_rng().gen_range(0..(COLOR_MAX - COLOR_MIN) / COLOR_STEP * 3) as usize;
@@ -292,16 +303,16 @@ fn print_bak(config: &crate::command::Config, timer: &crate::logic::timer::Timer
                 .map(|(color, ch)| style(ch).with(*color))
                 .map(|s| s.to_string())
                 .collect::<String>();
-            println!("{}", colored_line);
+            queue!(stdout(), Print(colored_line), Print("\r\n"))?;
         } else {
-            println!("{}", line);
+            queue!(stdout(), Print(line), Print("\r\n"))?;
         }
     }
     if let Some(message) = generate_footer_message(
         Some(timer).filter(|_| config.show_timestamp),
         &config.reason,
     ) {
-        print!("{}", message);
+        queue!(stdout(), Print(message), Print("\r\n"))?;
     }
 
     Ok(())

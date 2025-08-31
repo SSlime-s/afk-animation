@@ -1,70 +1,44 @@
 use anyhow::Result;
-use crossterm::terminal;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use crossterm::{
+    event,
+    terminal::{self, disable_raw_mode, enable_raw_mode},
 };
+use std::time::Duration;
 
-pub struct KeyManager {
-    saved_terattr: libc::termios,
-    buf: [libc::c_char; 1],
-    is_ctrl: Arc<AtomicBool>,
-}
+pub struct KeyManager {}
 impl KeyManager {
     pub fn new() -> Result<Self> {
-        let saved_terattr = Self::get_terattr_from_os();
-        let mut termattr = saved_terattr;
-
-        termattr.c_lflag &= !(libc::ICANON | libc::ECHO);
-        termattr.c_cc[libc::VMIN] = 0;
-        Self::set_terattr(&termattr);
-
         Self::ready_to_key_input();
 
-        let is_ctrl = Arc::new(AtomicBool::new(false));
-        {
-            let is_ctrl = is_ctrl.clone();
-            ctrlc::set_handler(move || {
-                is_ctrl.store(true, Ordering::SeqCst);
-            })?;
-        }
-
-        Ok(Self {
-            saved_terattr,
-            buf: [0; 1],
-            is_ctrl,
-        })
+        Ok(Self {})
     }
 
-    pub fn check(&mut self) -> bool {
-        let input = unsafe { libc::read(libc::STDIN_FILENO, &mut self.buf as *mut _ as *mut _, 1) };
-        input > 0 || self.is_ctrl.load(Ordering::SeqCst)
-    }
-
-    fn get_terattr_from_os() -> libc::termios {
-        let mut attr: libc::termios = unsafe { std::mem::zeroed() };
-
-        unsafe {
-            libc::tcgetattr(0, &mut attr);
-        }
-        attr
-    }
-
-    fn set_terattr(attr: &libc::termios) {
-        unsafe {
-            libc::tcsetattr(0, libc::TCSANOW, attr);
+    pub fn check(&self) -> bool {
+        if event::poll(Duration::from_millis(0)).unwrap_or(false) {
+            let Ok(event) = event::read() else {
+                return false;
+            };
+            matches!(
+                event,
+                event::Event::Key(event::KeyEvent {
+                    code: _,
+                    modifiers: _,
+                    kind: _,
+                    state: _,
+                })
+            )
+        } else {
+            false
         }
     }
 
     fn ready_to_key_input() {
-        unsafe {
-            libc::fcntl(libc::F_SETFL, libc::O_NONBLOCK);
-        }
+        enable_raw_mode().expect("Failed to enable raw mode");
     }
 }
 impl Drop for KeyManager {
     fn drop(&mut self) {
-        Self::set_terattr(&self.saved_terattr);
+        disable_raw_mode().expect("Failed to disable raw mode");
     }
 }
 
