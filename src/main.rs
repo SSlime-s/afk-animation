@@ -3,7 +3,7 @@ mod logic;
 
 use anyhow::{ensure, Context as _, Result};
 use crossterm::{
-    cursor::{Hide, Show},
+    cursor::{Hide, MoveUp, Show},
     execute, queue,
     style::{style, Color, Print, Stylize as _},
     terminal::{
@@ -198,6 +198,10 @@ impl Lines {
         Ok(self.lines[0].len())
     }
 
+    fn height(&self) -> usize {
+        self.lines.len()
+    }
+
     fn to_strings(&self) -> Vec<String> {
         assert_eq!(self.lines.first().unwrap().len(), self.colors.len());
         self.lines
@@ -247,10 +251,11 @@ fn main() -> Result<()> {
 
         let width = get_terminal_width()?;
 
+        let height = lines.height() + if config.is_exist_footer() { 1 } else { 0 };
         let lines = lines.update(width)?;
         queue!(
             stdout(),
-            Clear(ClearType::All),
+            MoveUp(height as u16),
             Print(lines.join("\r\n")),
             Print("\r\n")
         )?;
