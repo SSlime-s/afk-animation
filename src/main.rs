@@ -6,7 +6,7 @@ use crossterm::{
     cursor::{Hide, Show},
     execute,
     style::{style, Color, Print, Stylize as _},
-    terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{Clear, ClearType, DisableLineWrap, EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use rand::Rng;
 use std::{
@@ -227,10 +227,7 @@ fn main() -> Result<()> {
     let mut key_manager = crate::logic::terminal::KeyManager::new()?;
     let mut timer = crate::logic::timer::Timer::start();
 
-    // disable fold back
-    print!("\x1b[?7l");
-
-    execute!(stdout(), Hide, EnterAlternateScreen)?;
+    execute!(stdout(), Hide, EnterAlternateScreen, DisableLineWrap)?;
 
     let mut lines = Lines::new(config.colored)?;
     {
@@ -262,11 +259,8 @@ fn main() -> Result<()> {
 
     print_bak(&config, &timer)?;
 
-    // \x1b[?7h -> enable fold back
-    print!("\x1b[?7h");
-    execute!(stdout(), Show)?;
+    execute!(stdout(), Show, EnableLineWrap)?;
     if config.is_exist_footer() {
-        // clear line
         execute!(stdout(), Print("\n"), Clear(ClearType::CurrentLine))?;
     }
     std::io::stdout().flush()?;
