@@ -1,10 +1,17 @@
 mod command;
 mod logic;
 
+use anyhow::{ensure, Context as _, Result};
+use crossterm::{
+    cursor::{Hide, Show},
+    execute,
+    style::Print,
+    terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+};
 use rand::Rng;
 use std::{
     collections::VecDeque,
-    io::Write,
+    io::{stdout, Write},
     thread,
     time::{self},
 };
@@ -42,13 +49,17 @@ struct AfkAA {
     afk_verticals: Vec<Vec<char>>,
 }
 impl AfkAA {
-    fn new(interval: usize) -> Self {
+    fn new(interval: usize) -> Result<Self> {
         let lines = AFK_AA
             .trim_start_matches('\n')
             .lines()
             .map(|x| x.chars().collect())
             .collect::<Vec<Vec<char>>>();
-        let verticals = (0..lines.iter().map(|x| x.len()).max().unwrap())
+        let verticals = (0..lines
+            .iter()
+            .map(|x| x.len())
+            .max()
+            .context("Failed to get max line length")?)
             .map(|i| {
                 (0..lines.len())
                     .map(|j| lines.get(j)?.get(i))
@@ -56,11 +67,11 @@ impl AfkAA {
                     .collect()
             })
             .collect::<Vec<Vec<char>>>();
-        Self {
+        Ok(Self {
             idx: 0,
             interval,
             afk_verticals: verticals,
-        }
+        })
     }
 
     fn height(&self) -> usize {
@@ -132,34 +143,34 @@ struct Lines {
     colored: bool,
 }
 impl Lines {
-    fn new(colored: bool) -> Self {
-        let afk_aa = AfkAA::new(20);
-        Self {
+    fn new(colored: bool) -> Result<Self> {
+        let afk_aa = AfkAA::new(20)?;
+        Ok(Self {
             lines: vec![VecDeque::new(); afk_aa.height()],
             afk_aa,
             colors: VecDeque::new(),
             colorizer: Colorizer::new(),
             colored,
-        }
+        })
     }
 
     fn height(&self) -> usize {
         self.lines.len()
     }
 
-    fn update(&mut self, limit: usize) -> Vec<String> {
+    fn update(&mut self, limit: usize) -> Result<Vec<String>> {
         assert!(limit > 0);
-        while self.add_vertical_line() < limit {}
-        while self
-            .remove_first_vertical_line()
-            .expect("Failed to update AFK")
-            >= limit
-        {}
-        self.to_strings()
+        while self.add_vertical_line()? < limit {}
+        while self.remove_first_vertical_line()? >= limit {}
+
+        Ok(self.to_strings())
     }
 
-    fn add_vertical_line(&mut self) -> usize {
-        let nxt = self.afk_aa.next().unwrap();
+    fn add_vertical_line(&mut self) -> Result<usize> {
+        let nxt = self
+            .afk_aa
+            .next()
+            .context("Failed to get next vertical line")?;
         self.lines
             .iter_mut()
             .zip(nxt)
@@ -168,21 +179,22 @@ impl Lines {
             self.colors.extend(self.colorizer.by_ref().take(8));
             self.colors = self.colors.split_off(7);
         }
-        self.lines[0].len()
+        Ok(self.lines[0].len())
     }
 
-    fn remove_first_vertical_line(&mut self) -> Result<usize, ()> {
-        if self.lines[0].is_empty() {
-            Err(())
-        } else {
-            self.lines.iter_mut().for_each(|line| {
-                line.pop_front();
-            });
-            if self.colored {
-                self.colors.pop_front();
-            }
-            Ok(self.lines[0].len())
+    fn remove_first_vertical_line(&mut self) -> Result<usize> {
+        ensure!(
+            !self.lines[0].is_empty(),
+            "Failed to remove first vertical line"
+        );
+
+        self.lines.iter_mut().for_each(|line| {
+            line.pop_front();
+        });
+        if self.colored {
+            self.colors.pop_front();
         }
+        Ok(self.lines[0].len())
     }
 
     fn to_strings(&self) -> Vec<String> {
@@ -213,21 +225,20 @@ impl Lines {
     }
 }
 
-fn main() {
+fn main() -> Result<()> {
     let config = crate::command::Config::new();
-    let mut key_manager = crate::logic::terminal::KeyManager::new();
+    let mut key_manager = crate::logic::terminal::KeyManager::new()?;
     let mut timer = crate::logic::timer::Timer::start();
 
-    // hide cursor
-    print!("\x1b[?25l");
     // disable fold back
     print!("\x1b[?7l");
-    // to alternative screen
-    print!("\x1b[?1049h");
-    let mut lines = Lines::new(config.colored);
+
+    execute!(stdout(), Hide, EnterAlternateScreen)?;
+
+    let mut lines = Lines::new(config.colored)?;
     {
-        let width = get_terminal_width().expect("Failed to get terminal Width");
-        println!("{}", lines.update(width).join("\n"));
+        let width = get_terminal_width()?;
+        println!("{}", lines.update(width)?.join("\n"));
     }
 
     loop {
@@ -236,13 +247,13 @@ fn main() {
         }
         thread::sleep(time::Duration::from_millis(config.fps));
 
-        let width = get_terminal_width().expect("Failed to get terminal Width");
+        let width = get_terminal_width()?;
 
         print!(
             "\x1b[{}F",
             lines.height() + if config.is_exist_footer() { 1 } else { 0 }
         );
-        println!("{}", lines.update(width).join("\n"));
+        println!("{}", lines.update(width)?.join("\n"));
         if let Some(message) = generate_footer_message(
             Some(&timer).filter(|_| config.show_timestamp),
             &config.reason,
@@ -252,6 +263,24 @@ fn main() {
     }
     timer.finish();
 
+    execute!(stdout(), LeaveAlternateScreen)?;
+
+    print_bak(&config, &timer)?;
+
+    // \x1b[?7h -> enable fold back
+    print!("\x1b[?7h");
+    execute!(stdout(), Show)?;
+    if config.is_exist_footer() {
+        // clear line
+        // print!("\n\x1b[K");
+        execute!(stdout(), Print("\n"), Clear(ClearType::CurrentLine))?;
+    }
+    std::io::stdout().flush()?;
+
+    Ok(())
+}
+
+fn print_bak(config: &crate::command::Config, timer: &crate::logic::timer::Timer) -> Result<()> {
     let colorizer = Colorizer::new();
     let random_skip: usize =
         rand::thread_rng().gen_range(0..(COLOR_MAX - COLOR_MIN) / COLOR_STEP * 3) as usize;
@@ -262,15 +291,12 @@ fn main() {
                 .trim_start_matches('\n')
                 .lines()
                 .next()
-                .unwrap()
+                .context("Failed to get line length")?
                 .len(),
         )
         .collect::<Vec<_>>();
-    // to normal screen
-    print!("\x1b[?1049l");
+
     for line in BAK_AA.trim_start_matches('\n').lines() {
-        // "\x1b[K" == ESC[K : 行末までをクリア (空白埋めすると狭くしたときに描画が終わる)
-        print!("\x1b[K");
         if config.colored {
             let colored_line = colors
                 .iter()
@@ -283,21 +309,13 @@ fn main() {
         }
     }
     if let Some(message) = generate_footer_message(
-        Some(&timer).filter(|_| config.show_timestamp),
+        Some(timer).filter(|_| config.show_timestamp),
         &config.reason,
     ) {
-        print!("{}", message)
+        print!("{}", message);
     }
 
-    // \x1b[?25h -> show cursor
-    print!("\x1b[?25h");
-    // \x1b[?7h -> enable fold back
-    print!("\x1b[?7h");
-    if config.is_exist_footer() {
-        // clear line
-        print!("\n\x1b[K");
-    }
-    std::io::stdout().flush().unwrap();
+    Ok(())
 }
 
 fn generate_footer_message(

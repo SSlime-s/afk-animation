@@ -14,10 +14,10 @@ impl Config {
             reason: matches.value_of("reason").map(|s| s.to_string()),
             colored: !matches.is_present("without_color"),
             show_timestamp: !matches.is_present("without_timestamp"),
-            fps: match matches.value_of("speed").unwrap() {
-                "slow" => 150,
-                "normal" => 100,
-                "fast" => 75,
+            fps: match matches.value_of("speed") {
+                Some("slow") => 150,
+                Some("normal") => 100,
+                Some("fast") => 75,
                 _ => panic!("Invalid speed"),
             },
         }

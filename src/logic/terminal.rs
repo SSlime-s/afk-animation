@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -9,7 +10,7 @@ pub struct KeyManager {
     is_ctrl: Arc<AtomicBool>,
 }
 impl KeyManager {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         let saved_terattr = Self::get_terattr_from_os();
         let mut termattr = saved_terattr;
 
@@ -24,15 +25,14 @@ impl KeyManager {
             let is_ctrl = is_ctrl.clone();
             ctrlc::set_handler(move || {
                 is_ctrl.store(true, Ordering::SeqCst);
-            })
-            .expect("Failed to set Ctrl-C handler");
+            })?;
         }
 
-        Self {
+        Ok(Self {
             saved_terattr,
             buf: [0; 1],
             is_ctrl,
-        }
+        })
     }
 
     pub fn check(&mut self) -> bool {
@@ -67,14 +67,14 @@ impl Drop for KeyManager {
     }
 }
 
-pub fn get_terminal_width() -> Result<usize, ()> {
+pub fn get_terminal_width() -> Result<usize> {
     std::process::Command::new("tput")
         .arg("cols")
         .output()
-        .map_err(|_e| ())
+        .map_err(From::from)
         .and_then(|output| {
             std::str::from_utf8(&output.stdout)
-                .map_err(|_e| ())
-                .and_then(|width_str| width_str.trim().parse::<usize>().map_err(|_e| ()))
+                .map_err(From::from)
+                .and_then(|width_str| width_str.trim().parse::<usize>().map_err(From::from))
         })
 }
