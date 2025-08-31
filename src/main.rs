@@ -156,10 +156,6 @@ impl Lines {
         })
     }
 
-    fn height(&self) -> usize {
-        self.lines.len()
-    }
-
     fn update(&mut self, limit: usize) -> Result<Vec<String>> {
         assert!(limit > 0);
         while self.add_vertical_line()? < limit {}
@@ -250,11 +246,9 @@ fn main() -> Result<()> {
 
         let width = get_terminal_width()?;
 
-        print!(
-            "\x1b[{}F",
-            lines.height() + if config.is_exist_footer() { 1 } else { 0 }
-        );
-        println!("{}", lines.update(width)?.join("\n"));
+        let lines = lines.update(width)?;
+        execute!(stdout(), Clear(ClearType::All), Print(lines.join("\n")), Print("\n"))?;
+
         if let Some(message) = generate_footer_message(
             Some(&timer).filter(|_| config.show_timestamp),
             &config.reason,
@@ -328,7 +322,8 @@ fn generate_footer_message(
             format!("left from {}", timer.formatted_start())
         } else {
             format!(
-                "\x1b[Kleft from {} to {} ({})",
+                "{}left from {} to {} ({})",
+                Clear(ClearType::CurrentLine),
                 timer.formatted_start(),
                 timer.formatted_end(),
                 timer.formatted_duration(),
