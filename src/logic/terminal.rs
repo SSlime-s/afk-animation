@@ -1,4 +1,5 @@
 use anyhow::Result;
+use crossterm::terminal;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -68,13 +69,7 @@ impl Drop for KeyManager {
 }
 
 pub fn get_terminal_width() -> Result<usize> {
-    std::process::Command::new("tput")
-        .arg("cols")
-        .output()
+    terminal::size()
+        .map(|(width, _)| width as usize)
         .map_err(From::from)
-        .and_then(|output| {
-            std::str::from_utf8(&output.stdout)
-                .map_err(From::from)
-                .and_then(|width_str| width_str.trim().parse::<usize>().map_err(From::from))
-        })
 }
