@@ -5,7 +5,7 @@
 
 or
 
-`cargo install --git https://github.com/SSlime-s/afk-animation --tag v0.4.1`
+`cargo install --git https://github.com/SSlime-s/afk-animation --tag v1.0.0`
 
 ## usage
 `afk` on console
